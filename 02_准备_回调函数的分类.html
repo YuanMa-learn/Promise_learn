@@ -8,14 +8,34 @@
 </head>
 <body>
   <script>
-    /* 
-    1). 同步回调: 
+    /*
+    回调函数:
+    函数A作为参数(函数引用)传递到另一个函数B中，并且这个函数B执行函数A。我们就说函数A叫做回调函数。如果没有名称(函数表达式)，就叫做匿名回调函数。
+    1). 同步回调:
       理解: 立即执行, 完全执行完了才结束, 不会放入回调队列中
       例子: 数组遍历相关的回调函数 / Promise的excutor函数
-    2). 异步回调: 
+    2). 异步回调:
       理解: 不会立即执行, 会放入回调队列中将来执行
       例子: 定时器回调 / ajax回调 / Promise的成功|失败的回调
     */
+    // 同步回调函数
+    // 顺序执行
+    const arr = [1,3,5]
+    arr.forEach(item => {
+      console.log(item)
+    })
+    // item => {} 是一个遍历的回调函数，同步回调函数
+    console.log('forEach之后')
+    // 结果：1 3 5 forEach之后
+
+    // 异步回调函数
+    setTimeout(() => { // 异步回调函数，会放入队列中将来执行  只是启动任务就离开，等结果到来再处理
+      console.log('timeout log')
+    },0)
+    console.log('after timeout')
+    // 结果
+    // after timeout
+    // timeout log
   </script>
 </body>
 </html>
