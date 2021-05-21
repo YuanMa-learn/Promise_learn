@@ -7,7 +7,46 @@
 </head>
 <body>
   <script>
-    
+    /*
+    1.抽象表达：
+       Promise是JS中进行异步编程的新的解决方案
+       (旧方案：纯回调)
+    2.具体表达：
+      （1）从语法上说：Promise是一个构造函数
+      （2）从功能上说：Promise对象是用来封装一个异步操作并可以获取其结果
+
+
+    1.Promise的状态改变
+      pending-->resolved
+      pending-->rejected
+      说明：只有这两种状态变化，且改变是不可逆的，一个promise仅可改变一次
+          无论成功失败，都会有一个结果
+          成功的结果数据一般成为value，失败的结果数据一般称为reason
+
+     */
+
+    // 1.创建一个promise对象
+    const p = new Promise((resolve, reject) => { // 执行器函数 同步回调
+      //2.执行异步操作任务
+      setTimeout(() => {
+        const time = Date.now()
+        //3.1如果成功了调用resolve（）
+        if(time%2 === 0) {
+          resolve('成功的数据， time=' + time)
+        } else {
+          reject('失败的数据， time=' + time)
+        }
+        //3.2如果失败了调用reject（）
+      },1000)
+    })
+    p.then(
+            value => { // 接收到成功的value数据  onResolved()
+              console.log('成功的回调',value)
+            },
+            reason => { // 接收到失败的reason数据   onRejected()
+              console.log('失败的回调',reason)
+            }
+    )
   </script>
 </body>
 </html>
