@@ -8,15 +8,56 @@
 </head>
 <body>
   <script>
-    /* 
+    /*
     6.promise异常传透?
-      (1)当使用promise的then链式调用时, 可以在最后指定失败的回调, 
+      (1)当使用promise的then链式调用时, 可以在最后指定失败的回调,
       (2)前面任何操作出了异常, 都会传到最后失败的回调中处理
     7.中断promise链?
       (1)当使用promise的then链式调用时, 在中间中断, 不再调用后面的回调函数
       (2)办法: 在回调函数中返回一个pendding状态的promise对象
     */
 
+    new Promise(((resolve, reject) => {
+       reject(1) // 失败状态直接向下传透至最后的异常处理
+    })).then(
+            value => {
+              console.log('onResolved1()', value)
+              return 2
+            }
+            // 此处在没有指定失败的回调函数时相当于
+            //         reason => {
+            //           throw reason
+            // }
+            // 或
+            // reason => Promise.reject(reason) // 此处注意胖箭头=>作用在右侧没有{}时，有return的功能
+            // 于是失败状态从第一级层层传递至最后的catch
+    ).then(
+            value => {
+              console.log('onResolved2()', value)
+              return 3
+            }
+    ).then(
+            value => {
+              console.log('onResolved3()', value)
+            }
+    ).catch(
+            reason => {
+              console.log('onRejected1()', reason)
+              return new Promise(() => {}) // 返回一个pending状态的promise对象，所以then中的回调函数都不会被调用，中断promise链
+              // 注释此行打印结果
+              // onRejected1() 1
+             // onResolved4() undefined
+              // 不注释打印结果
+             //  onRejected1() 1
+            }
+    ).then(
+            value => {
+              console.log('onResolved4()', value)
+            },
+            reason => {
+              console.log('onRejected2()', reason)
+            }
+    )
   </script>
 </body>
 </html>

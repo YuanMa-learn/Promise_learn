@@ -209,3 +209,222 @@ promises: 包含n个promise的数组
 
 #####2.3.2 Promise的几个关键问题
 
+1.	如何改变promise的状态?
+
+      (1)resolve(value): 如果当前是pendding就会变为resolved
+      
+      (2)reject(reason): 如果当前是pendding就会变为rejected
+      
+      (3)抛出异常: 如果当前是pendding就会变为rejected
+
+2.	一个promise指定多个成功/失败回调函数, 都会调用吗?
+
+      当promise改变为对应状态时都会调用
+        
+            const p =new Promise(((resolve, reject) => {
+                  // resolve(1) // promise 变成成功状态
+                  // reject(2) // promise 变成失败状态
+                  // throw new Error('出错了') // 抛出异常，promise变为rejected失败状态，reason为抛出的error
+                  throw 3 // 抛出异常，promise变为rejected失败状态，reason为抛出的3
+                }))
+
+ 3.改变promise状态和指定回调函数谁先谁后?
+ 
+(1)都有可能, 正常情况下是先指定回调再改变状态, 但也可以先改状态再指定回调(then是同步调用的，只是指定回调函数并没有开始调用，而执行器函数中的操作是异步的，异步操作返回结果后再调用回调函数)
+ 
+ (2)如何先改状态再指定回调?
+ 
+   ①在执行器中直接调用resolve()/reject()
+
+   ②延迟更长时间才调用then()
+
+(3)什么时候才能得到数据?
+ 
+ ①如果先指定的回调, 那当状态发生改变时, 回调函数就会调用, 得到数据
+
+②如果先改变的状态, 那当指定回调时, 回调函数就会调用, 得到数据
+
+  // 先指定回调再改状态
+    new Promise(((resolve, reject) => {
+      setTimeout(() => {
+        resolve(1) // 后改变的状态（同时指定数据），异步执行回调函数
+      }, 1000)
+    })).then( // 先指定回调函数，保存当前指定的回调函数
+            value => {},
+            reason => {}
+    )
+
+    //先改状态再指定回调
+    new Promise(((resolve, reject) => {
+      resolve(1) // 先改变的状态（同时指定数据）
+    })).then( // 后指定回调函数，异步执行回调函数，尽管状态已经改变执行条件已经满足，仍会将回调函数加如到队列中等待主进程完成后再执行即异步执行
+            value => {},
+            reason => {}
+    )
+
+    const p1 = new Promise(((resolve, reject) => {
+      setTimeout(() => {
+        resolve(1) // 先改变的状态（同时指定数据），异步执行回调函数
+      }, 1000)
+    }))
+    setTimeout(() => {
+      p1.then(
+              value => {},
+              reason => {}
+      )
+    },1010)
+    
+ 4.	promise.then()返回的新promise的结果状态由什么决定?
+ 
+(1)简单表达: 由then()指定的回调函数执行的结果决定
+
+(2)详细表达:
+
+①如果抛出异常, 新promise变为rejected, reason为抛出的异常
+
+②如果返回的是非promise的任意值, 新promise变为resolved, value为返回的值
+
+③如果返回的是另一个新promise, 此promise的结果就会成为新promise的结果
+
+          new Promise(((resolve, reject) => {
+              resolve(1) // promise 变成成功状态
+              // reject(2) // promise 变成失败状态
+              // throw new Error('出错了') // 抛出异常，promise变为rejected失败状态，reason为抛出的error
+              // throw 3 // 抛出异常，promise变为rejected失败状态，reason为抛出的3
+            })).then(
+                    value => {
+                      console.log('onResolved1()', value) // 无返回值默认undefined
+                      // return 2 // 如果返回的是非promise的任意值, 新promise变为resolved, value为返回的值
+                      // return Promise.resolve(3) // 如果返回的是另一个新promise, 此promise的结果就会成为新promise的结果
+                      // return Promise.reject(4)
+                      throw 5 // 抛出异常，新promise变为rejected, reason为抛出的异常
+                    },
+                    reason => {
+                      console.log('onRejected1()', reason)
+                    }
+            ).then(
+                    value => {
+                      console.log('onResolved2()', value)
+                    },
+                    reason => {
+                      console.log('onRejected2()', reason)
+                    }
+            )
+            
+5.promise如何串连多个操作任务?
+
+(1)promise的then()返回一个新的promise, 可以开成then()的链式调用
+
+(2)通过then的链式调用串连多个同步/异步任务
+
+         new Promise(((resolve, reject) => {
+              setTimeout(() => {
+                console.log('执行任务1（异步）')
+                resolve(1)
+              },1000)
+            })).then(
+                    value => {
+                      console.log('任务1的结果:', value)
+                      return new Promise((resolve, reject) => { // then中执行异步任务，不能简单返回值，应该返回一个promise对象用于表示此异步任务的状态
+                        setTimeout(() => {
+                          console.log('执行任务2（异步）')
+                          resolve(2)
+                        },1000)
+                      })
+                    }
+            ).then(
+                    value => {
+                      console.log('任务2的结果：', value)
+                      console.log('执行任务3(同步)')
+                      return 3
+                    }
+            ).then(
+                    value => {
+                      console.log('执行任务3的结果：', value)
+                    }
+            )
+6.promise异常传透?
+
+(1)当使用promise的then链式调用时, 可以在最后指定失败的回调,
+
+(2)前面任何操作出了异常, 都会传到最后失败的回调中处理
+
+        new Promise(((resolve, reject) => {
+              reject(1) // 失败状态直接向下传透至最后的异常处理
+            })).then(
+                    value => {
+                      console.log('onResolved1()', value)
+                      return 2
+                    }
+                    // 此处在没有指定失败的回调函数时相当于
+                    //         reason => {
+                    //           throw reason
+                    // }
+                    // 或
+                    // reason => Promise.reject(reason) // 此处注意胖箭头=>作用在右侧没有{}时，有return的功能
+                    // 于是失败状态从第一级层层传递至最后的catch
+            ).then(
+                    value => {
+                      console.log('onResolved2()', value)
+                      return 3
+                    }
+            ).then(
+                    value => {
+                      console.log('onResolved3()', value)
+                    }
+            ).catch(
+                    reason => {
+                      console.log('onRejected1()', reason)
+                    }
+            )
+            //打印结果
+            // onRejected1() 1
+
+7.中断promise链?
+
+(1)当使用promise的then链式调用时, 在中间中断, 不再调用后面的回调函数
+
+(2)办法: 在回调函数中返回一个pendding状态的promise对象
+
+        new Promise(((resolve, reject) => {
+               reject(1) // 失败状态直接向下传透至最后的异常处理
+            })).then(
+                    value => {
+                      console.log('onResolved1()', value)
+                      return 2
+                    }
+                    // 此处在没有指定失败的回调函数时相当于
+                    //         reason => {
+                    //           throw reason
+                    // }
+                    // 或
+                    // reason => Promise.reject(reason) // 此处注意胖箭头=>作用在右侧没有{}时，有return的功能
+                    // 于是失败状态从第一级层层传递至最后的catch
+            ).then(
+                    value => {
+                      console.log('onResolved2()', value)
+                      return 3
+                    }
+            ).then(
+                    value => {
+                      console.log('onResolved3()', value)
+                    }
+            ).catch(
+                    reason => {
+                      console.log('onRejected1()', reason)
+                      return new Promise(() => {}) // 返回一个pending状态的promise对象，所以then中的回调函数都不会被调用，中断promise链
+                      // 注释此行打印结果
+                      // onRejected1() 1
+                     // onResolved4() undefined
+                      // 不注释打印结果
+                     //  onRejected1() 1
+                    }
+            ).then(
+                    value => {
+                      console.log('onResolved4()', value)
+                    },
+                    reason => {
+                      console.log('onRejected2()', reason)
+                    }
+            )
+            
